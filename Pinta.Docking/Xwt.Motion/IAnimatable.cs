@@ -1,10 +1,10 @@
-﻿//
-// ImageTabsToggledAction.cs
+//
+// Tweener.cs
 //
 // Author:
-//       Jonathan Pobst <monkey@jpobst.com>
+//       Jason Smith <jason.smith@xamarin.com>
 //
-// Copyright (c) 2015 Jonathan Pobst
+// Copyright (c) 2012 Xamarin Inc.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -25,28 +25,15 @@
 // THE SOFTWARE.
 
 using System;
-using Pinta.Core;
-using Gtk;
+using System.Collections.Generic;
+using System.Diagnostics;
 
-namespace Pinta.Actions
+namespace Xwt.Motion
 {
-    class ImageTabsToggledAction : IActionHandler
+	interface IAnimatable
 	{
-		#region IActionHandler Members
-		public void Initialize ()
-		{
-			PintaCore.Actions.View.ImageTabs.Toggled += Activated;
-		}
-
-		public void Uninitialize ()
-		{
-            PintaCore.Actions.View.ImageTabs.Toggled -= Activated;
-		}
-		#endregion
-
-		private void Activated (bool value)
-		{
-			Pinta.Docking.DockNotebook.DockNotebookManager.TabStripVisible = value;
-		}
+		void BatchBegin ();
+		void BatchCommit ();
 	}
+	
 }

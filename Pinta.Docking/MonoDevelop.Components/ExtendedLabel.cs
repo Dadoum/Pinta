@@ -1,10 +1,10 @@
-﻿//
-// ImageTabsToggledAction.cs
+//
+// ExtendedLabel.cs
 //
 // Author:
-//       Jonathan Pobst <monkey@jpobst.com>
+//       Lluis Sanchez <lluis@xamarin.com>
 //
-// Copyright (c) 2015 Jonathan Pobst
+// Copyright (c) 2012 Xamarin Inc
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -23,30 +23,56 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
-
 using System;
-using Pinta.Core;
-using Gtk;
+using Cairo;
 
-namespace Pinta.Actions
+namespace MonoDevelop.Components
 {
-    class ImageTabsToggledAction : IActionHandler
+	class ExtendedLabel: Gtk.Label
 	{
-		#region IActionHandler Members
-		public void Initialize ()
+		bool dropShadowVisible;
+
+		public ExtendedLabel ()
 		{
-			PintaCore.Actions.View.ImageTabs.Toggled += Activated;
 		}
 
-		public void Uninitialize ()
+		public ExtendedLabel (string text): base (text)
 		{
-            PintaCore.Actions.View.ImageTabs.Toggled -= Activated;
 		}
-		#endregion
 
-		private void Activated (bool value)
+		public bool DropShadowVisible {
+			get { return dropShadowVisible; }
+			set {
+				dropShadowVisible = value;
+				QueueDraw ();
+			}
+		}
+
+		protected override bool OnDrawn(Context cr)
 		{
-			Pinta.Docking.DockNotebook.DockNotebookManager.TabStripVisible = value;
+			if (!dropShadowVisible)
+				return base.OnDrawn(cr);
+
+			Pango.Layout la = new Pango.Layout (PangoContext);
+			int w, h;
+			if (UseMarkup)
+				la.SetMarkup (Text);
+			else
+				la.SetText (Text);
+
+			la.GetPixelSize (out w, out h);
+
+			int tx = Allocation.X + (int) Xpad + (int) ((float)(Allocation.Width - (int)(Xpad*2) - w) * Xalign);
+			int ty = Allocation.Y + (int) Ypad + (int) ((float)(Allocation.Height - (int)(Ypad*2) - h) * Yalign);
+			
+			StyleContext.LookupColor("text_color", out var color);
+			Gdk.CairoHelper.SetSourceRgba(cr, color);
+			cr.MoveTo(tx, ty);
+			Pango.CairoHelper.ShowLayout(cr, la);
+			
+			la.Dispose ();
+			return true;
 		}
 	}
 }
+

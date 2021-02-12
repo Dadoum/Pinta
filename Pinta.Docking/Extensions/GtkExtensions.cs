@@ -1,10 +1,9 @@
-﻿//
-// ImageTabsToggledAction.cs
 //
-// Author:
-//       Jonathan Pobst <monkey@jpobst.com>
+// GtkExtensions.cs
 //
-// Copyright (c) 2015 Jonathan Pobst
+// Authors: Jeffrey Stedfast <jeff@xamarin.com>
+//
+// Copyright (C) 2011 Xamarin Inc.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -23,30 +22,18 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
+//
 
-using System;
-using Pinta.Core;
-using Gtk;
-
-namespace Pinta.Actions
+namespace Pinta.Docking
 {
-    class ImageTabsToggledAction : IActionHandler
+    static class GtkExtensions
 	{
-		#region IActionHandler Members
-		public void Initialize ()
-		{
-			PintaCore.Actions.View.ImageTabs.Toggled += Activated;
-		}
+        public static Gdk.Point GetScreenCoordinates (this Gtk.Widget w, Gdk.Point p)
+        {
+            Gdk.Point newp = new Gdk.Point();
+            w.Window.GetRootCoords(p.X, p.Y, out newp.X, out newp.Y);
+            return newp;
+        }
+    }
 
-		public void Uninitialize ()
-		{
-            PintaCore.Actions.View.ImageTabs.Toggled -= Activated;
-		}
-		#endregion
-
-		private void Activated (bool value)
-		{
-			Pinta.Docking.DockNotebook.DockNotebookManager.TabStripVisible = value;
-		}
-	}
 }

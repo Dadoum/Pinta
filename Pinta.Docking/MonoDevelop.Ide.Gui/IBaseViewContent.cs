@@ -1,10 +1,9 @@
-﻿//
-// ImageTabsToggledAction.cs
+// IBaseViewContent.cs
 //
 // Author:
-//       Jonathan Pobst <monkey@jpobst.com>
+//   Viktoria Dudka (viktoriad@remobjects.com)
 //
-// Copyright (c) 2015 Jonathan Pobst
+// Copyright (c) 2009 RemObjects Software
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -23,30 +22,27 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
+//
+//
 
 using System;
-using Pinta.Core;
 using Gtk;
 
-namespace Pinta.Actions
+namespace Pinta.Docking.Gui
 {
-    class ImageTabsToggledAction : IActionHandler
+	public interface IBaseViewContent : IDisposable
 	{
-		#region IActionHandler Members
-		public void Initialize ()
-		{
-			PintaCore.Actions.View.ImageTabs.Toggled += Activated;
-		}
+		IWorkbenchWindow WorkbenchWindow { get; set; }
+		Widget Control { get; }
+		
+		/// <summary>
+		/// The label used for the subview list.
+		/// </summary>
+		string TabPageLabel { get; }
 
-		public void Uninitialize ()
-		{
-            PintaCore.Actions.View.ImageTabs.Toggled -= Activated;
-		}
-		#endregion
-
-		private void Activated (bool value)
-		{
-			Pinta.Docking.DockNotebook.DockNotebookManager.TabStripVisible = value;
-		}
+		object GetContent (Type type);
+		
+		bool CanReuseView (string fileName);
+		void RedrawContent ();
 	}
 }

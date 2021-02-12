@@ -1,21 +1,21 @@
-// 
+//
 // MainWindow.cs
-//  
+//
 // Author:
 //       Jonathan Pobst <monkey@jpobst.com>
-// 
+//
 // Copyright (c) 2010 Jonathan Pobst
-// 
+//
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
 // in the Software without restriction, including without limitation the rights
 // to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 // copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in
 // all copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -30,6 +30,8 @@ using System.Linq;
 using Gtk;
 using Pinta.Docking;
 using Pinta.Core;
+using Pinta.Docking.DockNotebook;
+using Pinta.Docking.Gui;
 using Pinta.Gui.Widgets;
 using Pinta.MacInterop;
 
@@ -39,8 +41,9 @@ namespace Pinta
 	{
 		// NRT - Created in OnActivated
 		WindowShell window_shell = null!;
-		Dock dock = null!;
+		DockFrame dock = null!;
 		GLib.Menu show_pad = null!;
+		DockNotebookContainer dock_container;
 
 		CanvasPad canvas_pad = null!;
 
@@ -126,9 +129,9 @@ namespace Pinta
 			PintaCore.Workspace.DocumentCreated += Workspace_DocumentCreated;
 			PintaCore.Workspace.DocumentClosed += Workspace_DocumentClosed;
 
-			var notebook = canvas_pad.Notebook;
-			notebook.TabClosed += DockNotebook_TabClosed;
-			notebook.ActiveTabChanged += DockNotebook_ActiveTabChanged;
+			var notebook = canvas_pad.NotebookContainer;
+			DockNotebookManager.ActiveTabChanged += DockNotebook_ActiveTabChanged;
+			DockNotebookManager.TabClosed += DockNotebook_TabClosed;
 		}
 
 		private void Workspace_DocumentClosed (object? sender, DocumentEventArgs e)
@@ -136,12 +139,16 @@ namespace Pinta
 			var tab = FindTabWithCanvas ((PintaCanvas) e.Document.Workspace.Canvas);
 
 			if (tab != null)
-				canvas_pad.Notebook.RemoveTab (tab);
+				dock_container.CloseTab (tab);
 		}
 
 		private void DockNotebook_TabClosed (object? sender, TabClosedEventArgs e)
 		{
-			var view = (DocumentViewContent) e.Item;
+			if (e.Tab == null || e.Tab.Content == null)
+				return;
+
+			var content = (SdiWorkspaceWindow) e.Tab.Content;
+			var view = (DocumentViewContent) content.ViewContent;
 
 			if (PintaCore.Workspace.OpenDocuments.IndexOf (view.Document) > -1) {
 				PintaCore.Workspace.SetActiveDocument (view.Document);
@@ -155,24 +162,25 @@ namespace Pinta
 
 		private void DockNotebook_ActiveTabChanged (object? sender, EventArgs e)
 		{
-			var item = canvas_pad.Notebook.ActiveItem;
+			var tab = DockNotebookManager.ActiveTab;
 
-			if (item == null)
+			if (tab == null || tab.Content == null)
 				return;
 
-			var view = (DocumentViewContent) item;
+			var content = (SdiWorkspaceWindow)tab.Content;
+			var view = (DocumentViewContent)content.ViewContent;
 
 			PintaCore.Workspace.SetActiveDocument (view.Document);
 
-			((CanvasWindow) view.Widget).Canvas.Window.Cursor = PintaCore.Tools.CurrentTool?.CurrentCursor;
+			((CanvasWindow)view.Control).Canvas.Window.Cursor = PintaCore.Tools.CurrentTool.CurrentCursor;
 		}
 
 		private void Workspace_DocumentCreated (object? sender, DocumentEventArgs e)
 		{
 			var doc = e.Document;
 
-			var notebook = canvas_pad.Notebook;
-			var selected_index = notebook.CurrentPage;
+			var container = DockNotebookManager.ActiveNotebookContainer ?? dock_container;
+			var selected_index = container.TabControl.CurrentTabIndex;
 
 
 			var canvas = new CanvasWindow (doc) {
@@ -183,7 +191,7 @@ namespace Pinta
 			var my_content = new DocumentViewContent (doc, canvas);
 
 			// Insert our tab to the right of the currently selected tab
-			notebook.InsertTab (my_content, selected_index + 1);
+			container.TabControl.InsertTab (my_content, selected_index + 1);
 
 			doc.Workspace.Canvas = canvas.Canvas;
 
@@ -415,11 +423,12 @@ namespace Pinta
 			PintaCore.Chrome.InitializeToolBox (toolbox);
 
 			// Dock widget
-			dock = new Dock ();
+			dock = new DockFrame ();
 
 			// Canvas pad
 			canvas_pad = new CanvasPad ();
 			canvas_pad.Initialize (dock);
+			dock_container = canvas_pad.NotebookContainer;
 
 			// Layer pad
 			var layers_pad = new LayersPad ();
@@ -431,9 +440,7 @@ namespace Pinta
 
 			container.PackStart (dock, true, true, 0);
 
-			// TODO-GTK3 (docking)
-#if false
-			string layout_file = Path.Combine (PintaCore.Settings.GetUserSettingsDirectory (), "layouts.xml");
+			string layout_file = System.IO.Path.Combine (PintaCore.Settings.GetUserSettingsDirectory (), "layouts.xml");
 
             if (System.IO.File.Exists(layout_file))
             {
@@ -447,12 +454,11 @@ namespace Pinta
                     System.Console.Error.WriteLine ("Error reading " + layout_file + ": " + e.ToString());
                 }
             }
-			
+
 			if (!dock.HasLayout ("Default"))
 				dock.CreateLayout ("Default", false);
-				
+
 			dock.CurrentLayout = "Default";
-#endif
 		}
 		#endregion
 
@@ -478,10 +484,7 @@ namespace Pinta
 
 		private void SaveUserSettings ()
 		{
-			// TODO-GTK3 (docking)
-#if false
-			dock.SaveLayouts (Path.Combine (PintaCore.Settings.GetUserSettingsDirectory (), "layouts.xml"));
-#endif
+			dock.SaveLayouts (System.IO.Path.Combine (PintaCore.Settings.GetUserSettingsDirectory (), "layouts.xml"));
 
 			// Don't store the maximized height if the window is maximized
 			if ((window_shell.Window.State & Gdk.WindowState.Maximized) == 0) {
@@ -614,18 +617,24 @@ namespace Pinta
 				var tab = FindTabWithCanvas ((PintaCanvas) doc.Workspace.Canvas);
 
 				if (tab != null) {
-					canvas_pad.Notebook.ActiveItem = tab;
+					dock_container.ActivateTab (tab);
 				}
 
 				doc.Workspace.Canvas.GrabFocus ();
 			}
 		}
 
-		private IDockNotebookItem? FindTabWithCanvas (PintaCanvas canvas)
+		private DockNotebookTab FindTabWithCanvas (PintaCanvas canvas)
 		{
-			return canvas_pad.Notebook.Items
-				.Where (i => ((CanvasWindow) i.Widget).Canvas == canvas)
-				.FirstOrDefault ();
+			foreach (var tab in DockNotebookManager.AllTabs) {
+				var window = (SdiWorkspaceWindow)tab.Content;
+				var doc_content = (DocumentViewContent)window.ActiveViewContent;
+
+				if (((CanvasWindow)doc_content.Control).Canvas == canvas)
+					return tab;
+			}
+
+			return null;
 		}
 		#endregion
 	}

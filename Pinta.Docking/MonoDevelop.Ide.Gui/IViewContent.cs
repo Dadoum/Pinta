@@ -1,10 +1,9 @@
-﻿//
-// ImageTabsToggledAction.cs
+﻿// IViewContent.cs
 //
 // Author:
-//       Jonathan Pobst <monkey@jpobst.com>
+//   Viktoria Dudka (viktoriad@remobjects.com)
 //
-// Copyright (c) 2015 Jonathan Pobst
+// Copyright (c) 2009 RemObjects Software
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -23,30 +22,39 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
+//
+//
 
 using System;
-using Pinta.Core;
-using Gtk;
 
-namespace Pinta.Actions
+namespace Pinta.Docking.Gui
 {
-    class ImageTabsToggledAction : IActionHandler
+    public interface IViewContent : IBaseViewContent
 	{
-		#region IActionHandler Members
-		public void Initialize ()
-		{
-			PintaCore.Actions.View.ImageTabs.Toggled += Activated;
-		}
+        string ContentName { get; set; }
+        string UntitledName { get; set; }
+        string StockIconId { get; }
 
-		public void Uninitialize ()
-		{
-            PintaCore.Actions.View.ImageTabs.Toggled -= Activated;
-		}
-		#endregion
+        bool IsUntitled { get; }
+        bool IsViewOnly { get;  }
+        bool IsFile { get; }
+        bool IsDirty { get; set; }
+        bool IsReadOnly { get; }
 
-		private void Activated (bool value)
-		{
-			Pinta.Docking.DockNotebook.DockNotebookManager.TabStripVisible = value;
-		}
+        void Load (string fileName);
+		void LoadNew (System.IO.Stream content, string mimeType);
+        void Save (string fileName);
+        void Save ();
+		
+		/// <summary>
+		/// Discards all changes. This method is called before a dirty file is closed. It tells the view 
+		/// content to remove all autosave data of the file.
+		/// </summary>
+		void DiscardChanges ();
+
+        event EventHandler ContentNameChanged;
+        event EventHandler ContentChanged;
+        event EventHandler DirtyChanged;
+        event EventHandler BeforeSave;
 	}
 }
